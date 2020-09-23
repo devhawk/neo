@@ -1,6 +1,7 @@
 #pragma warning disable IDE0051
 
 using Neo.Ledger;
+using Neo.Models;
 using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
