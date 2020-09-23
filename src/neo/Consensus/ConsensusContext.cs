@@ -71,7 +71,7 @@ namespace Neo.Consensus
                 if (Snapshot.Height == 0) return false;
                 TrimmedBlock currentBlock = Snapshot.Blocks[Snapshot.CurrentBlockHash];
                 TrimmedBlock previousBlock = Snapshot.Blocks[currentBlock.PrevHash];
-                return currentBlock.NextConsensus != previousBlock.NextConsensus;
+                return currentBlock.Header.NextConsensus != previousBlock.NextConsensus;
             }
         }
 
@@ -109,7 +109,7 @@ namespace Neo.Consensus
                 sc.AddSignature(contract, Validators[i], CommitPayloads[i].GetDeserializedMessage<Commit>().Signature);
                 j++;
             }
-            Block.Witness = sc.GetWitnesses()[0];
+            Block.Header.Witness = sc.GetWitnesses()[0];
             Block.Transactions = TransactionHashes.Select(p => Transactions[p]).ToArray();
             return Block;
         }
@@ -119,10 +119,10 @@ namespace Neo.Consensus
             Reset(0);
             if (reader.ReadUInt32() != Block.Version) throw new FormatException();
             if (reader.ReadUInt32() != Block.Index) throw new InvalidOperationException();
-            Block.Timestamp = reader.ReadUInt64();
-            Block.NextConsensus = reader.ReadSerializable<UInt160>();
+            Block.Header.Timestamp = reader.ReadUInt64();
+            Block.Header.NextConsensus = reader.ReadSerializable<UInt160>();
             if (Block.NextConsensus.Equals(UInt160.Zero))
-                Block.NextConsensus = null;
+                Block.Header.NextConsensus = null;
             Block.ConsensusData = reader.ReadSerializable<ConsensusData>();
             ViewNumber = reader.ReadByte();
             TransactionHashes = reader.ReadSerializableArray<UInt256>();
@@ -151,7 +151,7 @@ namespace Neo.Consensus
         {
             if (TransactionHashes == null) return null;
             if (Block.MerkleRoot is null)
-                Block.MerkleRoot = Block.CalculateMerkleRoot(Block.ConsensusData.Hash, TransactionHashes);
+                Block.Header.MerkleRoot = Block.CalculateMerkleRoot(Block.ConsensusData.Hash, TransactionHashes);
             return Block;
         }
 
@@ -316,7 +316,7 @@ namespace Neo.Consensus
             random.NextBytes(buffer);
             Block.ConsensusData.Nonce = BitConverter.ToUInt64(buffer);
             EnsureMaxBlockLimitation(Blockchain.Singleton.MemPool.GetSortedVerifiedTransactions());
-            Block.Timestamp = Math.Max(TimeProvider.Current.UtcNow.ToTimestampMS(), PrevHeader.Timestamp + 1);
+            Block.Header.Timestamp = Math.Max(TimeProvider.Current.UtcNow.ToTimestampMS(), PrevHeader.Timestamp + 1);
 
             return PreparationPayloads[MyIndex] = MakeSignedPayload(new PrepareRequest
             {
@@ -376,9 +376,12 @@ namespace Neo.Consensus
                 Snapshot = Blockchain.Singleton.GetSnapshot();
                 Block = new Block
                 {
-                    PrevHash = Snapshot.CurrentBlockHash,
-                    Index = Snapshot.Height + 1,
-                    NextConsensus = Blockchain.GetConsensusAddress(NativeContract.NEO.ComputeNextBlockValidators(Snapshot))
+                    Header = new Header
+                    {
+                        PrevHash = Snapshot.CurrentBlockHash,
+                        Index = Snapshot.Height + 1,
+                        NextConsensus = Blockchain.GetConsensusAddress(NativeContract.NEO.ComputeNextBlockValidators(Snapshot))
+                    }
                 };
                 var pv = Validators;
                 Validators = NativeContract.NEO.GetNextBlockValidators(Snapshot);
@@ -437,8 +440,8 @@ namespace Neo.Consensus
             {
                 PrimaryIndex = GetPrimaryIndex(viewNumber)
             };
-            Block.MerkleRoot = null;
-            Block.Timestamp = 0;
+            Block.Header.MerkleRoot = null;
+            Block.Header.Timestamp = 0;
             Block.Transactions = null;
             TransactionHashes = null;
             PreparationPayloads = new ConsensusPayload[Validators.Length];

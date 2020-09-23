@@ -59,7 +59,7 @@ namespace Neo.SmartContract
             }
         }
 
-        public readonly IVerifiable Verifiable;
+        public readonly ISignable Verifiable;
         private readonly Dictionary<UInt160, ContextItem> ContextItems;
 
         public bool Completed
@@ -103,7 +103,7 @@ namespace Neo.SmartContract
             }
         }
 
-        public ContractParametersContext(IVerifiable verifiable)
+        public ContractParametersContext(ISignable verifiable)
         {
             this.Verifiable = verifiable;
             this.ContextItems = new Dictionary<UInt160, ContextItem>();

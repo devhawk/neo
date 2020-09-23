@@ -39,14 +39,17 @@ namespace Neo.Ledger
 
         public static readonly Block GenesisBlock = new Block
         {
-            PrevHash = UInt256.Zero,
-            Timestamp = (new DateTime(2016, 7, 15, 15, 8, 21, DateTimeKind.Utc)).ToTimestampMS(),
-            Index = 0,
-            NextConsensus = GetConsensusAddress(StandbyValidators),
-            Witness = new Witness
+            Header = new Header
             {
-                InvocationScript = Array.Empty<byte>(),
-                VerificationScript = new[] { (byte)OpCode.PUSH1 }
+                PrevHash = UInt256.Zero,
+                Timestamp = (new DateTime(2016, 7, 15, 15, 8, 21, DateTimeKind.Utc)).ToTimestampMS(),
+                Index = 0,
+                NextConsensus = GetConsensusAddress(StandbyValidators),
+                Witness = new Witness
+                {
+                    InvocationScript = Array.Empty<byte>(),
+                    VerificationScript = new[] { (byte)OpCode.PUSH1 }
+                }
             },
             ConsensusData = new ConsensusData
             {

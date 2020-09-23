@@ -8,52 +8,42 @@ using System.Linq;
 
 namespace Neo.Ledger
 {
-    public class TrimmedBlock : BlockBase, ICloneable<TrimmedBlock>
+    public class TrimmedBlock : ICloneable<TrimmedBlock>, ISerializable
     {
+        public Header Header;
         public UInt256[] Hashes;
         public ConsensusData ConsensusData;
 
         public bool IsBlock => Hashes.Length > 0;
+        public uint Version => Header.Version;
+        public UInt256 PrevHash => Header.PrevHash;
+        public UInt256 MerkleRoot => Header.MerkleRoot;
+        public ulong Timestamp => Header.Timestamp;
+        public uint Index => Header.Index;
+        public UInt160 NextConsensus => Header.NextConsensus;
+        public Witness Witness => Header.Witness;
 
         public Block GetBlock(DataCache<UInt256, TransactionState> cache)
         {
             return new Block
             {
-                Version = Version,
-                PrevHash = PrevHash,
-                MerkleRoot = MerkleRoot,
-                Timestamp = Timestamp,
-                Index = Index,
-                NextConsensus = NextConsensus,
-                Witness = Witness,
+                Header = new Header
+                {
+                    Version = Header.Version,
+                    PrevHash = Header.PrevHash,
+                    MerkleRoot = Header.MerkleRoot,
+                    Timestamp = Header.Timestamp,
+                    Index = Header.Index,
+                    NextConsensus = Header.NextConsensus,
+                    Witness = Header.Witness,
+                },
                 ConsensusData = ConsensusData,
                 Transactions = Hashes.Skip(1).Select(p => cache[p].Transaction).ToArray()
             };
         }
 
-        private Header _header = null;
-        public Header Header
-        {
-            get
-            {
-                if (_header == null)
-                {
-                    _header = new Header
-                    {
-                        Version = Version,
-                        PrevHash = PrevHash,
-                        MerkleRoot = MerkleRoot,
-                        Timestamp = Timestamp,
-                        Index = Index,
-                        NextConsensus = NextConsensus,
-                        Witness = Witness
-                    };
-                }
-                return _header;
-            }
-        }
-
-        public override int Size => base.Size
+        public  int Size => 
+            Header.Size
             + Hashes.GetVarSize()           //Hashes
             + (ConsensusData?.Size ?? 0);   //ConsensusData
 
@@ -61,22 +51,24 @@ namespace Neo.Ledger
         {
             return new TrimmedBlock
             {
-                Version = Version,
-                PrevHash = PrevHash,
-                MerkleRoot = MerkleRoot,
-                Timestamp = Timestamp,
-                Index = Index,
-                NextConsensus = NextConsensus,
-                Witness = Witness,
+                Header = new Header
+                {
+                    Version = Header.Version,
+                    PrevHash = Header.PrevHash,
+                    MerkleRoot = Header.MerkleRoot,
+                    Timestamp = Header.Timestamp,
+                    Index = Header.Index,
+                    NextConsensus = Header.NextConsensus,
+                    Witness = Header.Witness,
+                },
                 Hashes = Hashes,
                 ConsensusData = ConsensusData,
-                _header = _header
             };
         }
 
-        public override void Deserialize(BinaryReader reader)
+        public void Deserialize(BinaryReader reader)
         {
-            base.Deserialize(reader);
+            Header = reader.ReadSerializable<Header>();
             Hashes = reader.ReadSerializableArray<UInt256>(Block.MaxContentsPerBlock);
             if (Hashes.Length > 0)
                 ConsensusData = reader.ReadSerializable<ConsensusData>();
@@ -84,29 +76,28 @@ namespace Neo.Ledger
 
         void ICloneable<TrimmedBlock>.FromReplica(TrimmedBlock replica)
         {
-            Version = replica.Version;
-            PrevHash = replica.PrevHash;
-            MerkleRoot = replica.MerkleRoot;
-            Timestamp = replica.Timestamp;
-            Index = replica.Index;
-            NextConsensus = replica.NextConsensus;
-            Witness = replica.Witness;
+            Header.Version = replica.Header.Version;
+            Header.PrevHash = replica.Header.PrevHash;
+            Header.MerkleRoot = replica.Header.MerkleRoot;
+            Header.Timestamp = replica.Header.Timestamp;
+            Header.Index = replica.Header.Index;
+            Header.NextConsensus = replica.Header.NextConsensus;
+            Header.Witness = replica.Header.Witness;
             Hashes = replica.Hashes;
             ConsensusData = replica.ConsensusData;
-            _header = replica._header;
         }
 
-        public override void Serialize(BinaryWriter writer)
+        public void Serialize(BinaryWriter writer)
         {
-            base.Serialize(writer);
+            writer.Write(Header);
             writer.Write(Hashes);
             if (Hashes.Length > 0)
                 writer.Write(ConsensusData);
         }
 
-        public override JObject ToJson()
+        public JObject ToJson(uint magic, byte addressVersion)
         {
-            JObject json = base.ToJson();
+            JObject json = Header.ToJson(magic, addressVersion);
             json["consensusdata"] = ConsensusData?.ToJson();
             json["hashes"] = Hashes.Select(p => (JObject)p.ToString()).ToArray();
             return json;
