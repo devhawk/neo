@@ -65,23 +65,24 @@ namespace Neo.Consensus
 
         private bool AddTransaction(Transaction tx, bool verify)
         {
+            var hash = tx.CalculateHash();
             if (verify)
             {
                 VerifyResult result = tx.Verify(context.Snapshot, context.VerificationContext);
                 if (result == VerifyResult.PolicyFail)
                 {
-                    Log($"reject tx: {tx.Hash}{Environment.NewLine}{tx.ToArray().ToHexString()}", LogLevel.Warning);
+                    Log($"reject tx: {hash}{Environment.NewLine}{tx.ToArray().ToHexString()}", LogLevel.Warning);
                     RequestChangeView(ChangeViewReason.TxRejectedByPolicy);
                     return false;
                 }
                 else if (result != VerifyResult.Succeed)
                 {
-                    Log($"Invalid transaction: {tx.Hash}{Environment.NewLine}{tx.ToArray().ToHexString()}", LogLevel.Warning);
+                    Log($"Invalid transaction: {hash}{Environment.NewLine}{tx.ToArray().ToHexString()}", LogLevel.Warning);
                     RequestChangeView(ChangeViewReason.TxInvalid);
                     return false;
                 }
             }
-            context.Transactions[tx.Hash] = tx;
+            context.Transactions[hash] = tx;
             context.VerificationContext.AddTransaction(tx);
             return CheckPrepareResponse();
         }
@@ -137,7 +138,7 @@ namespace Neo.Consensus
             if (context.CommitPayloads.Count(p => p?.ConsensusMessage.ViewNumber == context.ViewNumber) >= context.M && context.TransactionHashes.All(p => context.Transactions.ContainsKey(p)))
             {
                 Block block = context.CreateBlock();
-                Log($"relay block: height={block.Index} hash={block.Hash} tx={block.Transactions.Length}");
+                Log($"relay block: height={block.Index} hash={block.CalculateHash()} tx={block.Transactions.Length}");
                 blockchain.Tell(block);
             }
         }
@@ -321,7 +322,7 @@ namespace Neo.Consensus
 
         private void OnPersistCompleted(Block block)
         {
-            Log($"persist block: height={block.Index} hash={block.Hash} tx={block.Transactions.Length}");
+            Log($"persist block: height={block.Index} hash={block.CalculateHash()} tx={block.Transactions.Length}");
             block_received_time = TimeProvider.Current.UtcNow;
             knownHashes.Clear();
             InitializeConsensus(0);
@@ -434,7 +435,7 @@ namespace Neo.Consensus
             // around 2*15/M=30.0/5 ~ 40% block time (for M=5)
             ExtendTimerByFactor(2);
 
-            context.Block.Timestamp = message.Timestamp;
+            context.Block.Header.Timestamp = message.Timestamp;
             context.Block.ConsensusData.Nonce = message.Nonce;
             context.TransactionHashes = message.TransactionHashes;
             context.Transactions = new Dictionary<UInt256, Transaction>();
@@ -457,7 +458,7 @@ namespace Neo.Consensus
                 return;
             }
 
-            Dictionary<UInt256, Transaction> mempoolVerified = Blockchain.Singleton.MemPool.GetVerifiedTransactions().ToDictionary(p => p.Hash);
+            Dictionary<UInt256, Transaction> mempoolVerified = Blockchain.Singleton.MemPool.GetVerifiedTransactions().ToDictionary(p => p.CalculateHash());
             List<Transaction> unverified = new List<Transaction>();
             foreach (UInt256 hash in context.TransactionHashes)
             {
@@ -602,8 +603,9 @@ namespace Neo.Consensus
         {
             if (!context.IsBackup || context.NotAcceptingPayloadsDueToViewChanging || !context.RequestSentOrReceived || context.ResponseSent || context.BlockSent)
                 return;
-            if (context.Transactions.ContainsKey(transaction.Hash)) return;
-            if (!context.TransactionHashes.Contains(transaction.Hash)) return;
+            var hash = transaction.CalculateHash();
+            if (context.Transactions.ContainsKey(hash)) return;
+            if (!context.TransactionHashes.Contains(hash)) return;
             AddTransaction(transaction, true);
         }
 

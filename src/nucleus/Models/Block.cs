@@ -40,6 +40,11 @@ namespace Neo.Models
                 Transactions[i] = reader.ReadSerializable<Transaction>();
         }
 
+        void ISignable.DeserializeUnsigned(BinaryReader reader)
+        {
+            ((ISignable)Header).DeserializeUnsigned(reader);
+        }
+
         void ISerializable.Serialize(BinaryWriter writer)
         {
             writer.Write(Header);

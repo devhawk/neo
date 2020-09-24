@@ -52,7 +52,7 @@ namespace Neo.SmartContract
         public static IReadOnlyDictionary<uint, InteropDescriptor> Services => services;
         private List<IDisposable> Disposables => disposables ??= new List<IDisposable>();
         public TriggerType Trigger { get; }
-        public IVerifiable ScriptContainer { get; }
+        public ISignable ScriptContainer { get; }
         public StoreView Snapshot { get; }
         public long GasConsumed { get; private set; } = 0;
         public long GasLeft => gas_amount - GasConsumed;
@@ -62,7 +62,7 @@ namespace Neo.SmartContract
         public UInt160 EntryScriptHash => EntryContext?.GetScriptHash();
         public IReadOnlyList<NotifyEventArgs> Notifications => notifications ?? (IReadOnlyList<NotifyEventArgs>)Array.Empty<NotifyEventArgs>();
 
-        protected ApplicationEngine(TriggerType trigger, IVerifiable container, StoreView snapshot, long gas)
+        protected ApplicationEngine(TriggerType trigger, ISignable container, StoreView snapshot, long gas)
         {
             this.Trigger = trigger;
             this.ScriptContainer = container;
@@ -135,7 +135,7 @@ namespace Neo.SmartContract
             }
         }
 
-        public static ApplicationEngine Create(TriggerType trigger, IVerifiable container, StoreView snapshot, long gas = TestModeGas)
+        public static ApplicationEngine Create(TriggerType trigger, ISignable container, StoreView snapshot, long gas = TestModeGas)
         {
             return applicationEngineProvider?.Create(trigger, container, snapshot, gas)
                   ?? new ApplicationEngine(trigger, container, snapshot, gas);
@@ -276,16 +276,19 @@ namespace Neo.SmartContract
             var currentBlock = snapshot.Blocks[snapshot.CurrentBlockHash];
             return new Block
             {
-                Version = 0,
-                PrevHash = snapshot.CurrentBlockHash,
-                MerkleRoot = new UInt256(),
-                Timestamp = currentBlock.Timestamp + Blockchain.MillisecondsPerBlock,
-                Index = snapshot.Height + 1,
-                NextConsensus = currentBlock.NextConsensus,
-                Witness = new Witness
+                Header = new Header
                 {
-                    InvocationScript = Array.Empty<byte>(),
-                    VerificationScript = Array.Empty<byte>()
+                    Version = 0,
+                    PrevHash = snapshot.CurrentBlockHash,
+                    MerkleRoot = new UInt256(),
+                    Timestamp = currentBlock.Timestamp + Blockchain.MillisecondsPerBlock,
+                    Index = snapshot.Height + 1,
+                    NextConsensus = currentBlock.NextConsensus,
+                    Witness = new Witness
+                    {
+                        InvocationScript = Array.Empty<byte>(),
+                        VerificationScript = Array.Empty<byte>()
+                    }
                 },
                 ConsensusData = new ConsensusData(),
                 Transactions = new Transaction[0]
@@ -307,7 +310,7 @@ namespace Neo.SmartContract
             Exchange(ref applicationEngineProvider, null);
         }
 
-        public static ApplicationEngine Run(byte[] script, StoreView snapshot = null, IVerifiable container = null, Block persistingBlock = null, int offset = 0, long gas = TestModeGas)
+        public static ApplicationEngine Run(byte[] script, StoreView snapshot = null, ISignable container = null, Block persistingBlock = null, int offset = 0, long gas = TestModeGas)
         {
             SnapshotView disposable = null;
             if (snapshot is null)

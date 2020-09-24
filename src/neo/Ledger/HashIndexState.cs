@@ -1,5 +1,6 @@
 using Neo.IO;
 using Neo.Models;
+using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using System.IO;
 
@@ -41,7 +42,7 @@ namespace Neo.Ledger
 
         internal void Set(Header header)
         {
-            Hash = header.Hash;
+            Hash = header.CalculateHash();
             Index = header.Index;
         }
     }

@@ -18,7 +18,7 @@ namespace Neo.Network.P2P.Payloads
 
         public static MerkleBlockPayload Create(Block block, BitArray flags)
         {
-            MerkleTree tree = new MerkleTree(block.Transactions.Select(p => p.Hash).Prepend(block.ConsensusData.Hash).ToArray());
+            MerkleTree tree = new MerkleTree(block.Transactions.Select(p => p.CalculateHash()).Prepend(block.ConsensusData.CalculateHash()).ToArray());
             byte[] buffer = new byte[(flags.Length + 7) / 8];
             flags.CopyTo(buffer, 0);
             return new MerkleBlockPayload

@@ -11,7 +11,7 @@ using System.IO;
 
 namespace Neo.Network.P2P.Payloads
 {
-    public class ConsensusPayload : IInventory
+    public class ConsensusPayload : ISignable
     {
         public uint Version;
         public UInt256 PrevHash;
@@ -52,7 +52,7 @@ namespace Neo.Network.P2P.Payloads
             }
         }
 
-        InventoryType IInventory.InventoryType => InventoryType.Consensus;
+        // InventoryType IInventory.InventoryType => InventoryType.Consensus;
 
         public int Size =>
             sizeof(uint) +      //Version
@@ -62,7 +62,7 @@ namespace Neo.Network.P2P.Payloads
             Data.GetVarSize() + //Data
             1 + Witness.Size;   //Witness
 
-        Witness[] IVerifiable.Witnesses
+        Witness[] ISignable.Witnesses
         {
             get
             {
@@ -77,12 +77,12 @@ namespace Neo.Network.P2P.Payloads
 
         void ISerializable.Deserialize(BinaryReader reader)
         {
-            ((IVerifiable)this).DeserializeUnsigned(reader);
+            ((ISignable)this).DeserializeUnsigned(reader);
             if (reader.ReadByte() != 1) throw new FormatException();
             Witness = reader.ReadSerializable<Witness>();
         }
 
-        void IVerifiable.DeserializeUnsigned(BinaryReader reader)
+        void ISignable.DeserializeUnsigned(BinaryReader reader)
         {
             Version = reader.ReadUInt32();
             PrevHash = reader.ReadSerializable<UInt256>();
@@ -93,21 +93,13 @@ namespace Neo.Network.P2P.Payloads
             Data = reader.ReadVarBytes();
         }
 
-        UInt160[] IVerifiable.GetScriptHashesForVerifying(StoreView snapshot)
-        {
-            ECPoint[] validators = NativeContract.NEO.GetNextBlockValidators(snapshot);
-            if (validators.Length <= ValidatorIndex)
-                throw new InvalidOperationException();
-            return new[] { Contract.CreateSignatureRedeemScript(validators[ValidatorIndex]).ToScriptHash() };
-        }
-
         void ISerializable.Serialize(BinaryWriter writer)
         {
-            ((IVerifiable)this).SerializeUnsigned(writer);
+            ((ISignable)this).SerializeUnsigned(writer);
             writer.Write((byte)1); writer.Write(Witness);
         }
 
-        void IVerifiable.SerializeUnsigned(BinaryWriter writer)
+        void ISignable.SerializeUnsigned(BinaryWriter writer)
         {
             writer.Write(Version);
             writer.Write(PrevHash);

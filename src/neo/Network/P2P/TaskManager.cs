@@ -142,8 +142,8 @@ namespace Neo.Network.P2P
                 case Block block:
                     OnBlock(block);
                     break;
-                case IInventory inventory:
-                    OnTaskCompleted(inventory.Hash);
+                case ISignable inventory:
+                    OnTaskCompleted(inventory.CalculateHash());
                     break;
                 case Blockchain.PersistCompleted pc:
                     OnPersistCompleted(pc.Block);

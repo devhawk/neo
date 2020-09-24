@@ -4,7 +4,7 @@ using Neo.Cryptography;
 using Neo.Cryptography.ECC;
 using Neo.Ledger;
 using Neo.Models;
-using Neo.Network.P2P.Payloads;
+using Neo.Network.P2P;
 using Neo.Persistence;
 using Neo.SmartContract.Manifest;
 using Neo.VM.Types;
@@ -59,7 +59,7 @@ namespace Neo.SmartContract.Native.Oracle
         {
             Transaction tx = (Transaction)engine.ScriptContainer;
             OracleResponse response = tx.GetAttribute<OracleResponse>();
-            if (response is null) return tx.Hash;
+            if (response is null) return tx.CalculateHash();
             OracleRequest request = GetRequest(engine.Snapshot, response.Id);
             return request.OriginalTxid;
         }

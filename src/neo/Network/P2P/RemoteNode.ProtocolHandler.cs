@@ -2,6 +2,8 @@ using Akka.Actor;
 using Neo.Cryptography;
 using Neo.IO.Caching;
 using Neo.Ledger;
+using Neo.Models;
+using Neo.Network.P2P;
 using Neo.Network.P2P.Capabilities;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
@@ -248,7 +250,7 @@ namespace Neo.Network.P2P
                         }
                         break;
                     default:
-                        if (Blockchain.Singleton.RelayCache.TryGet(hash, out IInventory inventory))
+                        if (Blockchain.Singleton.RelayCache.TryGet(hash, out ISignable inventory))
                             EnqueueMessage(Message.Create((MessageCommand)payload.Type, inventory));
                         break;
                 }
@@ -284,9 +286,10 @@ namespace Neo.Network.P2P
             EnqueueMessage(Message.Create(MessageCommand.Headers, HeadersPayload.Create(headers.ToArray())));
         }
 
-        private void OnInventoryReceived(IInventory inventory)
+        private void OnInventoryReceived(ISignable inventory)
         {
-            pendingKnownHashes.Remove(inventory.Hash);
+            var hash = inventory.CalculateHash();
+            pendingKnownHashes.Remove(hash);
             switch (inventory)
             {
                 case Transaction transaction:
@@ -297,7 +300,7 @@ namespace Neo.Network.P2P
                     UpdateLastBlockIndex(block.Index, false);
                     break;
             }
-            knownHashes.Add(inventory.Hash);
+            knownHashes.Add(hash);
             system.TaskManager.Tell(inventory);
             system.Blockchain.Tell(inventory);
         }
@@ -325,7 +328,7 @@ namespace Neo.Network.P2P
 
         private void OnMemPoolMessageReceived()
         {
-            foreach (InvPayload payload in InvPayload.CreateGroup(InventoryType.TX, Blockchain.Singleton.MemPool.GetVerifiedTransactions().Select(p => p.Hash).ToArray()))
+            foreach (InvPayload payload in InvPayload.CreateGroup(InventoryType.TX, Blockchain.Singleton.MemPool.GetVerifiedTransactions().Select(p => p.CalculateHash()).ToArray()))
                 EnqueueMessage(Message.Create(MessageCommand.Inv, payload));
         }
 

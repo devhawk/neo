@@ -29,7 +29,7 @@ namespace Neo.Ledger
         public class FillMemoryPool { public IEnumerable<Transaction> Transactions; }
         public class FillCompleted { }
         internal class PreverifyCompleted { public Transaction Transaction; public VerifyResult Result; public bool Relay; }
-        public class RelayResult { public IInventory Inventory; public VerifyResult Result; }
+        public class RelayResult { public ISignable Inventory; public VerifyResult Result; }
         private class UnverifiedBlocksList { public LinkedList<Block> Blocks = new LinkedList<Block>(); public HashSet<IActorRef> Nodes = new HashSet<IActorRef>(); }
 
         public static readonly uint MillisecondsPerBlock = ProtocolSettings.Default.MillisecondsPerBlock;
@@ -290,7 +290,7 @@ namespace Neo.Ledger
                 // Check if any block with the hash being added already exists on possible candidates to be processed
                 foreach (var unverifiedBlock in list.Blocks)
                 {
-                    if (block.Hash == unverifiedBlock.Hash)
+                    if (block.CalculateHash() == unverifiedBlock.CalculateHash())
                         return;
                 }
 
@@ -313,10 +313,11 @@ namespace Neo.Ledger
             // Add the transactions to the memory pool
             foreach (var tx in transactions)
             {
-                if (View.ContainsTransaction(tx.Hash))
+                var hash = tx.CalculateHash();
+                if (View.ContainsTransaction(hash))
                     continue;
                 // First remove the tx if it is unverified in the pool.
-                MemPool.TryRemoveUnVerified(tx.Hash, out _);
+                MemPool.TryRemoveUnVerified(hash, out _);
                 // Add to the memory pool
                 MemPool.TryAdd(tx, currentSnapshot);
             }
@@ -325,7 +326,7 @@ namespace Neo.Ledger
             Sender.Tell(new FillCompleted());
         }
 
-        private void OnInventory(IInventory inventory, bool relay = true)
+        private void OnInventory(ISignable inventory, bool relay = true)
         {
             VerifyResult result = inventory switch
             {
@@ -367,7 +368,7 @@ namespace Neo.Ledger
             return VerifyResult.Succeed;
         }
 
-        private VerifyResult OnNewInventory(IInventory inventory)
+        private VerifyResult OnNewInventory(ISignable inventory)
         {
             if (!inventory.Verify(currentSnapshot)) return VerifyResult.Invalid;
             RelayCache.Add(inventory);
@@ -435,8 +436,8 @@ namespace Neo.Ledger
             {
                 if (block.Index == header_index.Count)
                 {
-                    header_index.Add(block.Hash);
-                    snapshot.HeaderHashIndex.GetAndChange().Set(block);
+                    header_index.Add(block.CalculateHash());
+                    snapshot.HeaderHashIndex.GetAndChange().Set(block.Header);
                 }
                 List<ApplicationExecuted> all_application_executed = new List<ApplicationExecuted>();
                 snapshot.PersistingBlock = block;
@@ -460,7 +461,7 @@ namespace Neo.Ledger
                         Transaction = tx
                     };
 
-                    clonedSnapshot.Transactions.Add(tx.Hash, state);
+                    clonedSnapshot.Transactions.Add(tx.CalculateHash(), state);
                     clonedSnapshot.Transactions.Commit();
 
                     using (ApplicationEngine engine = ApplicationEngine.Create(TriggerType.Application, tx, clonedSnapshot, tx.SystemFee))
@@ -480,7 +481,7 @@ namespace Neo.Ledger
                         all_application_executed.Add(application_executed);
                     }
                 }
-                snapshot.BlockHashIndex.GetAndChange().Set(block);
+                snapshot.BlockHashIndex.GetAndChange().Set(block.Header);
                 using (ApplicationEngine engine = ApplicationEngine.Create(TriggerType.System, null, snapshot))
                 {
                     engine.LoadScript(postPersistScript);
@@ -553,7 +554,7 @@ namespace Neo.Ledger
             }
         }
 
-        private void SendRelayResult(IInventory inventory, VerifyResult result)
+        private void SendRelayResult(ISignable inventory, VerifyResult result)
         {
             RelayResult rr = new RelayResult
             {

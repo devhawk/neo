@@ -3,6 +3,7 @@ using Neo.Cryptography.ECC;
 using Neo.IO;
 using Neo.Ledger;
 using Neo.Models;
+using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using Neo.Persistence;
 using Neo.SmartContract;
@@ -133,7 +134,7 @@ namespace Neo.Consensus
             LastChangeViewPayloads = reader.ReadNullableArray<ConsensusPayload>(ProtocolSettings.Default.ValidatorsCount);
             if (TransactionHashes.Length == 0 && !RequestSentOrReceived)
                 TransactionHashes = null;
-            Transactions = transactions.Length == 0 && !RequestSentOrReceived ? null : transactions.ToDictionary(p => p.Hash);
+            Transactions = transactions.Length == 0 && !RequestSentOrReceived ? null : transactions.ToDictionary(p => p.CalculateHash());
             VerificationContext = new TransactionVerificationContext();
             if (Transactions != null)
             {
@@ -151,7 +152,7 @@ namespace Neo.Consensus
         {
             if (TransactionHashes == null) return null;
             if (Block.MerkleRoot is null)
-                Block.Header.MerkleRoot = Block.CalculateMerkleRoot(Block.ConsensusData.Hash, TransactionHashes);
+                Block.Header.MerkleRoot = Block.CalculateMerkleRoot(Block.ConsensusData.CalculateHash(), TransactionHashes);
             return Block;
         }
 
@@ -301,8 +302,9 @@ namespace Neo.Consensus
                 blockSystemFee += tx.SystemFee;
                 if (blockSystemFee > maxBlockSystemFee) break;
 
-                hashes.Add(tx.Hash);
-                Transactions.Add(tx.Hash, tx);
+                var hash = tx.CalculateHash();
+                hashes.Add(hash);
+                Transactions.Add(hash, tx);
                 VerificationContext.AddTransaction(tx);
             }
 

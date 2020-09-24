@@ -1,5 +1,6 @@
 using Neo.Cryptography;
 using Neo.Cryptography.ECC;
+using Neo.Models;
 using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using Neo.VM.Types;
@@ -22,7 +23,7 @@ namespace Neo.SmartContract
         {
             ReadOnlySpan<byte> value = item switch
             {
-                InteropInterface _interface => _interface.GetInterface<IVerifiable>().GetHashData(),
+                InteropInterface _interface => _interface.GetInterface<ISignable>().GetHashData(),
                 Null _ => ScriptContainer.GetHashData(),
                 _ => item.GetSpan()
             };
@@ -33,7 +34,7 @@ namespace Neo.SmartContract
         {
             ReadOnlySpan<byte> value = item switch
             {
-                InteropInterface _interface => _interface.GetInterface<IVerifiable>().GetHashData(),
+                InteropInterface _interface => _interface.GetInterface<ISignable>().GetHashData(),
                 Null _ => ScriptContainer.GetHashData(),
                 _ => item.GetSpan()
             };
@@ -54,7 +55,7 @@ namespace Neo.SmartContract
         {
             ReadOnlySpan<byte> message = item switch
             {
-                InteropInterface _interface => _interface.GetInterface<IVerifiable>().GetHashData(),
+                InteropInterface _interface => _interface.GetInterface<ISignable>().GetHashData(),
                 Null _ => ScriptContainer.GetHashData(),
                 _ => item.GetSpan()
             };
@@ -83,7 +84,7 @@ namespace Neo.SmartContract
             int m = signatures.Length, n = pubkeys.Length;
             ReadOnlySpan<byte> message = item0 switch
             {
-                InteropInterface _interface => _interface.GetInterface<IVerifiable>().GetHashData(),
+                InteropInterface _interface => _interface.GetInterface<ISignable>().GetHashData(),
                 Null _ => ScriptContainer.GetHashData(),
                 _ => item0.GetSpan()
             };

@@ -28,15 +28,20 @@ namespace Neo.Models
 
         void ISerializable.Deserialize(BinaryReader reader)
         {
+            ((ISignable)this).DeserializeUnsigned(reader);
+            Witness[] witnesses = reader.ReadSerializableArray<Witness>(1);
+            if (witnesses.Length != 1) throw new FormatException();
+            Witness = witnesses[0];
+        }
+
+        void ISignable.DeserializeUnsigned(BinaryReader reader)
+        {
             Version = reader.ReadUInt32();
             PrevHash = reader.ReadSerializable<UInt256>();
             MerkleRoot = reader.ReadSerializable<UInt256>();
             Timestamp = reader.ReadUInt64();
             Index = reader.ReadUInt32();
             NextConsensus = reader.ReadSerializable<UInt160>();
-            Witness[] witnesses = reader.ReadSerializableArray<Witness>(1);
-            if (witnesses.Length != 1) throw new FormatException();
-            Witness = witnesses[0];
         }
 
         void ISerializable.Serialize(BinaryWriter writer)
@@ -44,8 +49,6 @@ namespace Neo.Models
             ((ISignable)this).SerializeUnsigned(writer);
             writer.Write(new Witness[] { Witness });
         }
-
-        Witness[] ISignable.Witnesses => new Witness[] { Witness };
 
         void ISignable.SerializeUnsigned(BinaryWriter writer)
         {
@@ -56,6 +59,8 @@ namespace Neo.Models
             writer.Write(Index);
             writer.Write(NextConsensus);
         }
+
+        Witness[] ISignable.Witnesses => new Witness[] { Witness };
 
         public JObject ToJson(uint magic, byte addressVersion)
         {

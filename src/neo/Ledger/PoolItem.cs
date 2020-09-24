@@ -1,4 +1,5 @@
 using Neo.Models;
+using Neo.Network.P2P;
 using Neo.Network.P2P.Payloads;
 using System;
 
@@ -45,7 +46,7 @@ namespace Neo.Ledger
             ret = Tx.NetworkFee.CompareTo(otherTx.NetworkFee);
             if (ret != 0) return ret;
             // Transaction hash sorted descending
-            return otherTx.Hash.CompareTo(Tx.Hash);
+            return otherTx.CalculateHash().CompareTo(Tx.CalculateHash());
         }
 
         public int CompareTo(PoolItem otherItem)

@@ -266,7 +266,7 @@ namespace Neo.Ledger
         {
             var poolItem = new PoolItem(tx);
 
-            if (_unsortedTransactions.ContainsKey(tx.Hash)) return VerifyResult.AlreadyExists;
+            if (_unsortedTransactions.ContainsKey(tx.CalculateHash())) return VerifyResult.AlreadyExists;
 
             List<Transaction> removedTransactions = null;
             _txRwLock.EnterWriteLock();
@@ -275,7 +275,7 @@ namespace Neo.Ledger
                 VerifyResult result = tx.VerifyStateDependent(snapshot, VerificationContext);
                 if (result != VerifyResult.Succeed) return result;
 
-                _unsortedTransactions.Add(tx.Hash, poolItem);
+                _unsortedTransactions.Add(tx.CalculateHash(), poolItem);
                 VerificationContext.AddTransaction(tx);
                 _sortedTransactions.Add(poolItem);
 
@@ -294,7 +294,7 @@ namespace Neo.Ledger
                     plugin.TransactionsRemoved(MemoryPoolTxRemovalReason.CapacityExceeded, removedTransactions);
             }
 
-            if (!_unsortedTransactions.ContainsKey(tx.Hash)) return VerifyResult.OutOfMemory;
+            if (!_unsortedTransactions.ContainsKey(tx.CalculateHash())) return VerifyResult.OutOfMemory;
             return VerifyResult.Succeed;
         }
 
@@ -305,7 +305,7 @@ namespace Neo.Ledger
             {
                 PoolItem minItem = GetLowestFeeTransaction(out var unsortedPool, out var sortedPool);
 
-                unsortedPool.Remove(minItem.Tx.Hash);
+                unsortedPool.Remove(minItem.Tx.CalculateHash());
                 sortedPool.Remove(minItem);
                 removedTransactions.Add(minItem.Tx);
 
@@ -344,7 +344,7 @@ namespace Neo.Ledger
         {
             foreach (PoolItem item in _sortedTransactions)
             {
-                if (_unverifiedTransactions.TryAdd(item.Tx.Hash, item))
+                if (_unverifiedTransactions.TryAdd(item.Tx.CalculateHash(), item))
                     _unverifiedSortedTransactions.Add(item);
             }
 
@@ -365,8 +365,9 @@ namespace Neo.Ledger
                 // First remove the transactions verified in the block.
                 foreach (Transaction tx in block.Transactions)
                 {
-                    if (TryRemoveVerified(tx.Hash, out _)) continue;
-                    TryRemoveUnVerified(tx.Hash, out _);
+                    var hash = tx.CalculateHash();
+                    if (TryRemoveVerified(hash, out _)) continue;
+                    TryRemoveUnVerified(hash, out _);
                 }
 
                 // Add all the previously verified transactions back to the unverified transactions
@@ -446,7 +447,7 @@ namespace Neo.Ledger
                     -Blockchain.MillisecondsPerBlock * blocksTillRebroadcast);
                 foreach (PoolItem item in reverifiedItems)
                 {
-                    if (_unsortedTransactions.TryAdd(item.Tx.Hash, item))
+                    if (_unsortedTransactions.TryAdd(item.Tx.CalculateHash(), item))
                     {
                         verifiedSortedTxPool.Add(item);
 
@@ -459,13 +460,13 @@ namespace Neo.Ledger
                     else
                         VerificationContext.RemoveTransaction(item.Tx);
 
-                    _unverifiedTransactions.Remove(item.Tx.Hash);
+                    _unverifiedTransactions.Remove(item.Tx.CalculateHash());
                     unverifiedSortedTxPool.Remove(item);
                 }
 
                 foreach (PoolItem item in invalidItems)
                 {
-                    _unverifiedTransactions.Remove(item.Tx.Hash);
+                    _unverifiedTransactions.Remove(item.Tx.CalculateHash());
                     unverifiedSortedTxPool.Remove(item);
                 }
             }

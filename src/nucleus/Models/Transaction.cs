@@ -29,7 +29,7 @@ namespace Neo.Models
         /// </summary>
         public UInt160 Sender => Signers[0].Account;
 
-        const int HeaderSize =
+        public const int HeaderSize =
             sizeof(byte) +  //Version
             sizeof(uint) +  //Nonce
             sizeof(long) +  //SystemFee
@@ -44,7 +44,26 @@ namespace Neo.Models
             Script.GetVarSize() +
             Witnesses.GetVarSize();
 
+        public T GetAttribute<T>() where T : TransactionAttribute
+        {
+            for (int i = 0; i < Attributes.Length; i++)
+            {
+                if (typeof(T) == Attributes[i].GetType())
+                {
+                    return (T)Attributes[i];
+                }
+            }
+
+            return null;
+        }
+
         void ISerializable.Deserialize(BinaryReader reader)
+        {
+            ((ISignable)this).DeserializeUnsigned(reader);
+            Witnesses = reader.ReadSerializableArray<Witness>();
+        }
+
+        void ISignable.DeserializeUnsigned(BinaryReader reader)
         {
             Version = reader.ReadByte();
             if (Version > 0) throw new FormatException();
@@ -59,7 +78,6 @@ namespace Neo.Models
             Attributes = DeserializeAttributes(reader, MaxTransactionAttributes - Signers.Length);
             Script = reader.ReadVarBytes(ushort.MaxValue);
             if (Script.Length == 0) throw new FormatException();
-            Witnesses = reader.ReadSerializableArray<Witness>();
         }
 
         private static Signer[] DeserializeSigners(BinaryReader reader, int maxCount)

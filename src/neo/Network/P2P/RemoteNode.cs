@@ -5,6 +5,7 @@ using Neo.Cryptography;
 using Neo.IO;
 using Neo.IO.Actors;
 using Neo.Ledger;
+using Neo.Models;
 using Neo.Network.P2P.Capabilities;
 using Neo.Network.P2P.Payloads;
 using System.Collections;
@@ -17,7 +18,7 @@ namespace Neo.Network.P2P
     public partial class RemoteNode : Connection
     {
         internal class StartProtocol { }
-        internal class Relay { public IInventory Inventory; }
+        internal class Relay { public ISignable Inventory; }
 
         private readonly NeoSystem system;
         private readonly Queue<Message> message_queue_high = new Queue<Message>();
@@ -126,7 +127,7 @@ namespace Neo.Network.P2P
                 case Message msg:
                     EnqueueMessage(msg);
                     break;
-                case IInventory inventory:
+                case ISignable inventory:
                     OnSend(inventory);
                     break;
                 case Relay relay:
@@ -138,7 +139,7 @@ namespace Neo.Network.P2P
             }
         }
 
-        private void OnRelay(IInventory inventory)
+        private void OnRelay(ISignable inventory)
         {
             if (!IsFullNode) return;
             if (inventory.InventoryType == InventoryType.TX)
@@ -146,10 +147,10 @@ namespace Neo.Network.P2P
                 if (bloom_filter != null && !bloom_filter.Test((Transaction)inventory))
                     return;
             }
-            EnqueueMessage(MessageCommand.Inv, InvPayload.Create(inventory.InventoryType, inventory.Hash));
+            EnqueueMessage(MessageCommand.Inv, InvPayload.Create(inventory.InventoryType, inventory.CalculateHash()));
         }
 
-        private void OnSend(IInventory inventory)
+        private void OnSend(ISignable inventory)
         {
             if (!IsFullNode) return;
             if (inventory.InventoryType == InventoryType.TX)

@@ -1,5 +1,6 @@
 using Akka.Actor;
 using Neo.IO;
+using Neo.Models;
 using Neo.Network.P2P.Payloads;
 using System;
 using System.Collections.Concurrent;
@@ -15,8 +16,8 @@ namespace Neo.Network.P2P
 {
     public class LocalNode : Peer
     {
-        internal class RelayDirectly { public IInventory Inventory; }
-        internal class SendDirectly { public IInventory Inventory; }
+        internal class RelayDirectly { public ISignable Inventory; }
+        internal class SendDirectly { public ISignable Inventory; }
 
         public const uint ProtocolVersion = 0;
         private const int MaxCountFromSeedList = 5;
@@ -199,7 +200,7 @@ namespace Neo.Network.P2P
             }
         }
 
-        private void OnRelayDirectly(IInventory inventory)
+        private void OnRelayDirectly(ISignable inventory)
         {
             var message = new RemoteNode.Relay { Inventory = inventory };
             // When relaying a block, if the block's index is greater than 'LastBlockIndex' of the RemoteNode, relay the block;
@@ -216,7 +217,7 @@ namespace Neo.Network.P2P
                 SendToRemoteNodes(message);
         }
 
-        private void OnSendDirectly(IInventory inventory) => SendToRemoteNodes(inventory);
+        private void OnSendDirectly(ISignable inventory) => SendToRemoteNodes(inventory);
 
         protected override void OnTcpConnected(IActorRef connection)
         {
