@@ -12,6 +12,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 
 namespace Neo.SmartContract.Native
 {
@@ -82,7 +83,7 @@ namespace Neo.SmartContract.Native
         }
 
         [ContractMethod(0, CallFlags.WriteStates | CallFlags.AllowCall | CallFlags.AllowNotify)]
-        private void Finish(ApplicationEngine engine)
+        private async Task Finish(ApplicationEngine engine)
         {
             Transaction tx = (Transaction)engine.ScriptContainer;
             OracleResponse response = tx.GetAttribute<OracleResponse>();
@@ -91,7 +92,7 @@ namespace Neo.SmartContract.Native
             if (request == null) throw new ArgumentException("Oracle request was not found");
             engine.SendNotification(Hash, "OracleResponse", new VM.Types.Array { response.Id, request.OriginalTxid.ToArray() });
             StackItem userData = BinarySerializer.Deserialize(request.UserData, engine.Limits.MaxStackSize, engine.Limits.MaxItemSize, engine.ReferenceCounter);
-            engine.CallFromNativeContract(Hash, request.CallbackContract, request.CallbackMethod, request.Url, userData, (int)response.Code, response.Result);
+            await engine.CallFromNativeContract(Hash, request.CallbackContract, request.CallbackMethod, request.Url, userData, (int)response.Code, response.Result);
         }
 
         private UInt256 GetOriginalTxid(ApplicationEngine engine)
@@ -170,7 +171,7 @@ namespace Neo.SmartContract.Native
         }
 
         [ContractMethod(OracleRequestPrice, CallFlags.WriteStates | CallFlags.AllowNotify)]
-        private void Request(ApplicationEngine engine, string url, string filter, string callback, StackItem userData, long gasForResponse)
+        private async Task Request(ApplicationEngine engine, string url, string filter, string callback, StackItem userData, long gasForResponse)
         {
             //Check the arguments
             if (Utility.StrictUTF8.GetByteCount(url) > MaxUrlLength
@@ -181,7 +182,7 @@ namespace Neo.SmartContract.Native
 
             //Mint gas for the response
             engine.AddGas(gasForResponse);
-            GAS.Mint(engine, Hash, gasForResponse, false);
+            await GAS.Mint(engine, Hash, gasForResponse, false);
 
             //Increase the request id
             StorageItem item_id = engine.Snapshot.GetAndChange(CreateStorageKey(Prefix_RequestId));

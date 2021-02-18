@@ -13,12 +13,82 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using static System.Threading.Interlocked;
 using Array = System.Array;
 using VMArray = Neo.VM.Types.Array;
 
 namespace Neo.SmartContract
 {
+    [AsyncMethodBuilder(typeof(ContractTaskMethodBuilder))]
+    class ContractTask
+    {
+        public ContractTaskAwaiter GetAwaiter() => throw new NotImplementedException();
+    }
+
+    class ContractTaskAwaiter : INotifyCompletion
+    {
+        public bool IsCompleted => throw new NotImplementedException();
+        public void GetResult() => throw new NotImplementedException();
+        public void OnCompleted(Action continuation) => throw new NotImplementedException();
+    }
+
+    class ContractTaskMethodBuilder
+    {
+        public static ContractTaskMethodBuilder Create() => throw new NotImplementedException();
+        public void Start<TStateMachine>(ref TStateMachine stateMachine)
+            where TStateMachine : IAsyncStateMachine
+             => throw new NotImplementedException();
+        public void SetStateMachine(IAsyncStateMachine stateMachine) => throw new NotImplementedException();
+        public void SetException(Exception exception) => throw new NotImplementedException();
+        public void SetResult() => throw new NotImplementedException();
+        public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+            where TAwaiter : INotifyCompletion
+            where TStateMachine : IAsyncStateMachine
+            => throw new NotImplementedException();
+        public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+            where TAwaiter : ICriticalNotifyCompletion
+            where TStateMachine : IAsyncStateMachine
+            => throw new NotImplementedException();
+        public ContractTask Task => throw new NotImplementedException();
+    }
+
+
+    // [AsyncMethodBuilder(typeof(ContractTaskMethodBuilder<>))]
+    class ContractTask<T> : ContractTask
+    {
+        // public ContractTaskAwaiter<T> GetAwaiter() => throw new NotImplementedException();
+    }
+
+    class ContractTaskAwaiter<T> : INotifyCompletion
+    {
+        public bool IsCompleted => throw new NotImplementedException();
+        public void GetResult() => throw new NotImplementedException();
+        public void OnCompleted(Action continuation) => throw new NotImplementedException();
+    }
+
+    class ContractTaskMethodBuilder<T>
+    {
+        public static ContractTaskMethodBuilder<T> Create() => throw new NotImplementedException();
+        public void Start<TStateMachine>(ref TStateMachine stateMachine)
+            where TStateMachine : IAsyncStateMachine
+             => throw new NotImplementedException();
+        public void SetStateMachine(IAsyncStateMachine stateMachine) => throw new NotImplementedException();
+        public void SetException(Exception exception) => throw new NotImplementedException();
+        public void SetResult() => throw new NotImplementedException();
+        public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+            where TAwaiter : INotifyCompletion
+            where TStateMachine : IAsyncStateMachine
+            => throw new NotImplementedException();
+        public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+            where TAwaiter : ICriticalNotifyCompletion
+            where TStateMachine : IAsyncStateMachine
+            => throw new NotImplementedException();
+        public ContractTask<T> Task => throw new NotImplementedException();
+    }
+
+
     public partial class ApplicationEngine : ExecutionEngine
     {
         /// <summary>
@@ -125,25 +195,36 @@ namespace Neo.SmartContract
             return context_new;
         }
 
-        internal void CallFromNativeContract(UInt160 callingScriptHash, UInt160 hash, string method, params StackItem[] args)
+        protected override void ContextUnloaded(ExecutionContext context)
+        {
+            base.ContextUnloaded(context);
+        }
+
+
+        internal ContractTask CallFromNativeContract(UInt160 callingScriptHash, UInt160 hash, string method, params StackItem[] args)
         {
             ExecutionContext context_current = CurrentContext;
             ExecutionContext context_new = CallContractInternal(hash, method, CallFlags.All, false, args);
             ExecutionContextState state = context_new.GetState<ExecutionContextState>();
             state.CallingScriptHash = callingScriptHash;
-            while (CurrentContext != context_current)
-                StepOut();
+
+            return new ContractTask();
+            // while (CurrentContext != context_current)
+            //     StepOut();
         }
 
-        internal T CallFromNativeContract<T>(UInt160 callingScriptHash, UInt160 hash, string method, params StackItem[] args)
+        internal ContractTask<T> CallFromNativeContract<T>(UInt160 callingScriptHash, UInt160 hash, string method, params StackItem[] args)
         {
             ExecutionContext context_current = CurrentContext;
             ExecutionContext context_new = CallContractInternal(hash, method, CallFlags.All, true, args);
             ExecutionContextState state = context_new.GetState<ExecutionContextState>();
             state.CallingScriptHash = callingScriptHash;
-            while (CurrentContext != context_current)
-                StepOut();
-            return (T)Convert(Pop(), new InteropParameterDescriptor(typeof(T)));
+
+            return new ContractTask<T>();
+
+            // while (CurrentContext != context_current)
+            //     StepOut();
+            // return (T)Convert(Pop(), new InteropParameterDescriptor(typeof(T)));
         }
 
         public static ApplicationEngine Create(TriggerType trigger, IVerifiable container, DataCache snapshot, Block persistingBlock = null, long gas = TestModeGas)

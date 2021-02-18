@@ -11,6 +11,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 
 namespace Neo.SmartContract.Native
 {
@@ -54,14 +55,14 @@ namespace Neo.SmartContract.Native
             CheckCandidate(engine.Snapshot, state.VoteTo, candidate);
         }
 
-        private void DistributeGas(ApplicationEngine engine, UInt160 account, NeoAccountState state)
+        private async Task DistributeGas(ApplicationEngine engine, UInt160 account, NeoAccountState state)
         {
             // PersistingBlock is null when running under the debugger
             if (engine.PersistingBlock is null) return;
 
             BigInteger gas = CalculateBonus(engine.Snapshot, state.VoteTo, state.Balance, state.BalanceHeight, engine.PersistingBlock.Index);
             state.BalanceHeight = engine.PersistingBlock.Index;
-            GAS.Mint(engine, account, gas, true);
+            await GAS.Mint(engine, account, gas, true);
         }
 
         private BigInteger CalculateBonus(DataCache snapshot, ECPoint vote, BigInteger value, uint start, uint end)
@@ -236,7 +237,7 @@ namespace Neo.SmartContract.Native
         }
 
         [ContractMethod(0_05000000, CallFlags.WriteStates)]
-        private bool Vote(ApplicationEngine engine, UInt160 account, ECPoint voteTo)
+        private async Task<bool> Vote(ApplicationEngine engine, UInt160 account, ECPoint voteTo)
         {
             if (!engine.CheckWitnessInternal(account)) return false;
             NeoAccountState state_account = engine.Snapshot.GetAndChange(CreateStorageKey(Prefix_Account).Add(account))?.GetInteroperable<NeoAccountState>();
@@ -256,7 +257,7 @@ namespace Neo.SmartContract.Native
                 else
                     item.Add(-state_account.Balance);
             }
-            DistributeGas(engine, account, state_account);
+            await DistributeGas(engine, account, state_account);
             if (state_account.VoteTo != null)
             {
                 StorageKey key = CreateStorageKey(Prefix_Candidate).Add(state_account.VoteTo);
